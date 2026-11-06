@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, User, Phone, Building2, Ticket } from "lucide-re
 import "./Register.css";
 
 function Register() {
+const navigate = useNavigate();
 const location = useLocation();
 
 const selectedOrganization = new URLSearchParams(location.search)
