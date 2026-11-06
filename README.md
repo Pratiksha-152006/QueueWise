@@ -328,7 +328,7 @@ Developed as a hackathon project.
 
 
 
-\*\*Repository:\*\* \[QueueWise – Smart Queue Management](https://github.com/Pratiksha-152006/smart-queue-management)
+\*\*Repository:\*\* \[QueueWise – Smart Queue Management](https://github.com/Pratiksha-152006/QueueWise)
 
 
 
