@@ -1,136 +1,77 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import "./AdminDashboard.css";
+import { getQueue, getQueueStatus } from "../services/api";
 
 function AdminDashboard() {
+  const [stats, setStats] = useState(null);
+  const [tokens, setTokens] = useState([]);
+  const [error, setError] = useState("");
+
+  const refresh = async () => {
+    try {
+      const [statusData, queueData] = await Promise.all([getQueueStatus(), getQueue()]);
+      setStats(statusData);
+      setTokens(queueData);
+      setError("");
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  useEffect(() => {
+    refresh();
+    const timer = setInterval(refresh, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const serviceCounts = Object.entries(tokens.reduce((acc, token) => {
+    if (token.status === "Waiting") acc[token.service_type] = (acc[token.service_type] || 0) + 1;
+    return acc;
+  }, {}));
+
   return (
-    <div className="dashboard">
-      <aside className="sidebar">
+    <div className="admin-dashboard">
+      <aside className="dashboard-sidebar">
         <h2>QueueFlow</h2>
         <p className="sidebar-subtitle">Smart Queue Platform</p>
-
         <nav>
-          <a className="active" href="#">Dashboard</a>
-          <a href="#">Register Queue</a>
-          <a href="#">Queue Status</a>
-          <a href="#">My Token</a>
-          <a href="#">Settings</a>
+          <a className="active" href="/admin">Dashboard</a>
+          <a href="/register">Register Queue</a>
+          <a href="/track">Queue Status</a>
+          <a href="/">Home</a>
         </nav>
-
         <div className="sidebar-footer">Smart service. Less waiting.</div>
       </aside>
-
       <main className="dashboard-main">
         <header className="dashboard-header">
-          <div>
-            <p className="eyebrow">OVERVIEW</p>
-            <h1>Admin Dashboard</h1>
-            <p>Monitor queues and manage service counters.</p>
-          </div>
-
-          <button className="primary-button">+ Add Service</button>
+          <div><p className="eyebrow">OVERVIEW</p><h1>Admin Dashboard</h1><p>Live queue information from the backend.</p></div>
+          <button className="primary-button" onClick={refresh}>Refresh</button>
         </header>
-
         <section className="welcome-panel">
-          <div>
-            <p>QUEUE MANAGEMENT</p>
-            <h2>Good day, Administrator 👋</h2>
-            <span>Here's what's happening across your services today.</span>
-          </div>
+          <div><p>QUEUE MANAGEMENT</p><h2>Queue overview</h2><span>Live status of registered tokens.</span></div>
           <div className="welcome-icon">⌛</div>
         </section>
-
+        {error && <p className="demo-note">{error}</p>}
         <section className="stats-grid">
-          <div className="stat-card">
-            <span>Total Waiting</span>
-            <h2>128</h2>
-            <small>Across all services</small>
-          </div>
-
-          <div className="stat-card">
-            <span>Now Serving</span>
-            <h2>24</h2>
-            <small>Currently being served</small>
-          </div>
-
-          <div className="stat-card">
-            <span>Avg. Wait Time</span>
-            <h2>18 min</h2>
-            <small>Estimated waiting time</small>
-          </div>
-
-          <div className="stat-card">
-            <span>Active Counters</span>
-            <h2>08</h2>
-            <small>Currently operational</small>
-          </div>
+          <div className="stat-card"><span>Total Tokens</span><h2>{stats?.total_tokens ?? "—"}</h2><small>All registered tokens</small></div>
+          <div className="stat-card"><span>Total Waiting</span><h2>{stats?.waiting ?? "—"}</h2><small>Across services</small></div>
+          <div className="stat-card"><span>Now Serving</span><h2>{stats?.serving ?? "—"}</h2><small>Currently being served</small></div>
+          <div className="stat-card"><span>Completed</span><h2>{stats?.completed ?? "—"}</h2><small>Completed tokens</small></div>
         </section>
-
         <section className="dashboard-grid">
           <div className="panel">
-            <div className="panel-heading">
-              <div>
-                <h3>Queue by Service</h3>
-                <p>People currently waiting</p>
-              </div>
-              <span className="live-label">● LIVE DEMO</span>
-            </div>
-
-            <div className="service-row">
-              <span>Customer Support</span>
-              <strong>42</strong>
-              <div className="progress"><span style={{ width: "85%" }} /></div>
-            </div>
-
-            <div className="service-row">
-              <span>Payments & Billing</span>
-              <strong>35</strong>
-              <div className="progress"><span style={{ width: "70%" }} /></div>
-            </div>
-
-            <div className="service-row">
-              <span>Appointments</span>
-              <strong>28</strong>
-              <div className="progress"><span style={{ width: "56%" }} /></div>
-            </div>
-
-            <div className="service-row">
-              <span>General Enquiries</span>
-              <strong>23</strong>
-              <div className="progress"><span style={{ width: "46%" }} /></div>
-            </div>
+            <div className="panel-heading"><div><h3>Queue by Service</h3><p>People currently waiting</p></div><span className="live-label">● LIVE</span></div>
+            {serviceCounts.length ? serviceCounts.map(([service, count]) => <div className="service-row" key={service}><span>{service}</span><strong>{count}</strong><div className="progress"><span style={{ width: `${Math.min(100, count * 10)}%` }} /></div></div>) : <p>No waiting tokens.</p>}
           </div>
-
           <div className="panel">
-            <div className="panel-heading">
-              <div>
-                <h3>Now Serving</h3>
-                <p>Current counter activity</p>
-              </div>
-            </div>
-
-            <div className="serving-item">
-              <div><strong>#A024</strong><small>Customer Support</small></div>
-              <span>Counter 01</span>
-            </div>
-
-            <div className="serving-item">
-              <div><strong>#B012</strong><small>Payments & Billing</small></div>
-              <span>Counter 03</span>
-            </div>
-
-            <div className="serving-item">
-              <div><strong>#C008</strong><small>Appointments</small></div>
-              <span>Counter 05</span>
-            </div>
+            <div className="panel-heading"><div><h3>Recent Tokens</h3><p>Latest queue activity</p></div></div>
+            {tokens.slice(-6).reverse().map(token => <div className="serving-item" key={token.id}><div><strong>{token.token_number}</strong><small>{token.service_type}</small></div><span>{token.status}</span></div>)}
+            {!tokens.length && <p>No tokens registered yet.</p>}
           </div>
         </section>
-
-        <p className="demo-note">
-          Demo dashboard — sample figures are displayed until the backend is connected.
-        </p>
+        <p className="demo-note">Dashboard refreshes automatically every 5 seconds.</p>
       </main>
     </div>
   );
 }
-
 export default AdminDashboard;

@@ -2,22 +2,24 @@ import { useNavigate, useLocation } from "react-router-dom";
 import React, { useState } from "react";
 import { ArrowLeft, ArrowRight, User, Phone, Building2, Ticket } from "lucide-react";
 import "./Register.css";
+import { createToken } from "../services/api";
 
 function Register() {
-const navigate = useNavigate();
-const location = useLocation();
-
-const selectedOrganization = new URLSearchParams(location.search)
-  .get("organization");
-
-console.log("Selected organization:", selectedOrganization);
-
-const [organization, setOrganization] = useState(
-  selectedOrganization || location.state?.organization || ""
-);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const organizationAliases = {
+    Banks: "Bank",
+    Hospitals: "Hospital",
+    Restaurants: "Restaurant",
+    Government: "Government",
+    Airports: "Airport",
+    "Shopping Malls": "Shopping Mall"
+  };
+  const [organization, setOrganization] = useState(organizationAliases[location.state?.organization] || "");
   const [service, setService] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const organizationServices = {
     Bank: ["Cash Deposit", "Cash Withdrawal", "Account Services", "Loan Enquiry"],
@@ -28,38 +30,45 @@ const [organization, setOrganization] = useState(
     "Shopping Mall": ["Customer Support", "Billing", "Returns and Exchange"],
   };
 
-  const handleSubmit = (event) => {
-  event.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
-  if (!organization || !service || !name.trim() || !phone.trim()) {
-    alert("Please complete all the fields.");
-    return;
-  }
+    if (!organization || !service || !name.trim() || !phone.trim()) {
+      alert("Please complete all the fields.");
+      return;
+    }
 
-  if (!/^[0-9]{10}$/.test(phone)) {
-    alert("Please enter a valid 10-digit mobile number.");
-    return;
-  }
+    if (!/^[0-9]{10}$/.test(phone)) {
+      alert("Please enter a valid 10-digit mobile number.");
+      return;
+    }
 
-  // Generate a new demo token
-  const tokenNumber =
-    Number(localStorage.getItem("queueTokenCounter") || "0") + 1;
+    setSubmitting(true);
+    try {
+      const result = await createToken({
+        visitor_name: name.trim(),
+        phone_number: phone,
+        organization_type: organization,
+        service_type: service,
+        priority: "Normal"
+      });
 
-  localStorage.setItem("queueTokenCounter", tokenNumber);
-
-  const generatedToken = `Q${String(tokenNumber).padStart(3, "0")}`;
-
-  // Send registration details to the token page
-  navigate("/token", {
-    state: {
-      token: generatedToken,
-      name: name,
-      phone: phone,
-      organization: organization,
-      service: service,
-    },
-  });
-};
+      navigate("/token", {
+        state: {
+          token: result.token_number,
+          name: result.visitor_name,
+          phone,
+          organization,
+          service: result.service_type,
+          status: result.status
+        }
+      });
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
   return (
     <div className="register-page">
       <header className="register-header">
@@ -82,10 +91,20 @@ const [organization, setOrganization] = useState(
           </div>
 
           <form onSubmit={handleSubmit}>
-            <div className="selected-organization">
-  <Building2 size={18} />
-  <span>Registering for: <strong>{organization}</strong></span>
-</div>
+            <label>Organization Type</label>
+            <select
+              value={organization}
+              onChange={(e) => {
+                setOrganization(e.target.value);
+                setService("");
+              }}
+              required
+            >
+              <option value="">Select an organization</option>
+              {Object.keys(organizationServices).map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
 
             <label>Select Service</label>
             <select
@@ -125,8 +144,8 @@ const [organization, setOrganization] = useState(
               />
             </div>
 
-            <button className="generate-button" type="submit">
-              Generate My Token <ArrowRight size={18} />
+            <button className="generate-button" type="submit" disabled={submitting}>
+              {submitting ? "Generating..." : "Generate My Token"} <ArrowRight size={18} />
             </button>
           </form>
 

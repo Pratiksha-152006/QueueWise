@@ -221,3 +221,13 @@ __marimo__/
 
 *.db
 *.sqlite3
+
+node_modules/
+dist/
+.env.local
+
+.env
+venv/
+
+*.zip
+*.pptx

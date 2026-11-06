@@ -2,11 +2,25 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import inspect, text
 from database import engine, Base, SessionLocal
 from models import QueueToken
 from schemas import TokenCreate, TokenStatusUpdate
 
 Base.metadata.create_all(bind=engine)
+
+def migrate_token_columns():
+    inspector = inspect(engine)
+    if "queue_tokens" not in inspector.get_table_names():
+        return
+    existing_columns = {column["name"] for column in inspector.get_columns("queue_tokens")}
+    with engine.begin() as connection:
+        if "organization_type" not in existing_columns:
+            connection.execute(text("ALTER TABLE queue_tokens ADD COLUMN organization_type VARCHAR"))
+        if "phone_number" not in existing_columns:
+            connection.execute(text("ALTER TABLE queue_tokens ADD COLUMN phone_number VARCHAR"))
+
+migrate_token_columns()
 
 app = FastAPI(
     title="Smart Queue Management System",
@@ -59,6 +73,8 @@ def create_token(data: TokenCreate, db: Session = Depends(get_db)):
         "message": "Token generated successfully",
         "token_number": new_token.token_number,
         "visitor_name": new_token.visitor_name,
+        "phone_number": new_token.phone_number,
+        "organization_type": new_token.organization_type,
         "service_type": new_token.service_type,
         "status": new_token.status
     }
@@ -343,5 +359,40 @@ def estimate_waiting_time(
         "people_ahead": len(tokens_ahead),
         "estimated_wait_minutes": round(estimated_wait, 1),
         "estimation_method": "Historical average or default service time"
+    }
+@app.get("/analytics/peak-hours")
+def peak_hour_analytics(db: Session = Depends(get_db)):
+    tokens = db.query(QueueToken).all()
+
+    hourly_counts = {}
+
+    for token in tokens:
+        hour = token.created_at.hour
+        hourly_counts[hour] = hourly_counts.get(hour, 0) + 1
+
+    if not hourly_counts:
+        return {
+            "total_tokens": 0,
+            "peak_hour": None,
+            "peak_hour_label": "No data available",
+            "hourly_distribution": []
+        }
+
+    peak_hour = max(hourly_counts, key=hourly_counts.get)
+
+    hourly_distribution = [
+        {
+            "hour": hour,
+            "time": f"{hour:02d}:00",
+            "token_count": count
+        }
+        for hour, count in sorted(hourly_counts.items())
+    ]
+
+    return {
+        "total_tokens": len(tokens),
+        "peak_hour": peak_hour,
+        "peak_hour_label": f"{peak_hour:02d}:00 - {(peak_hour + 1) % 24:02d}:00",
+        "hourly_distribution": hourly_distribution
     }
 

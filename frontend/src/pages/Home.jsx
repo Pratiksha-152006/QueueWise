@@ -157,26 +157,9 @@ function Home() {
           {selectedService && (
             <div className="selection-message">
               <span>You selected: <strong>{selectedService}</strong></span>
-    <button
-  onClick={() => {
-    const organizationMap = {
-      Banks: "Bank",
-      Hospitals: "Hospital",
-      Restaurants: "Restaurant",
-      Government: "Government",
-      Airports: "Airport",
-      "Shopping Malls": "Shopping Mall",
-    };
-
-    const selectedOrganization = organizationMap[selectedService];
-
-    navigate(
-      `/register?organization=${encodeURIComponent(selectedOrganization)}`
-    );
-  }}
->
-  Continue <ArrowRight size={17} />
-</button>
+             <button onClick={() => navigate("/register", { state: { organization: selectedService } })}>
+                Continue <ArrowRight size={17} />
+              </button>
             </div>
           )}
         </section>
